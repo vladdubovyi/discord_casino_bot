@@ -7,7 +7,7 @@ from random import randint
 db = db.SQLite(config.db_fileName)
 
 def roll_drums():
-	symbs = ['#', '@', '*', '%', '^']
+	symbs = ['🍎', '🍌', '🍑', '🍍', '🥝']
 	res = []
 	i = 0
 	while i < 10: 
@@ -50,13 +50,13 @@ async def roll_casino(bet, message):
 		balance -= bet
 		drum = roll_drums()
 		bet = check_prize(drum, bet)
-		await message.channel.send(drum[0] + '\t' + drum[1] + '\t' + drum[2] + '\n'
+		await message.reply(drum[0] + '\t' + drum[1] + '\t' + drum[2] + '\n'
 						+ drum[3] + '\t' + drum[4] + '\t' + drum[5] +'\n'
-						+ drum[6] + '\t' + drum[7] + '\t' + drum[8] +'\n')
-		await message.channel.send('Ваш выигрыш составляет ' + str(bet) + '!')
+						+ drum[6] + '\t' + drum[7] + '\t' + drum[8] +'\n', mention_author=True)
+		await message.reply('Ваш выигрыш составляет ' + str(bet) + '!')
 		db.update_bal(str(message.author), str(balance + bet))
 	else:
-		await message.channel.send('У вас недостаточно копеек для этого кручения!')
+		await message.reply('У вас недостаточно копеек для этого кручения!')
 
 class MyClient(discord.Client):
 	async def on_ready(self):
@@ -77,32 +77,59 @@ class MyClient(discord.Client):
 					await roll_casino(1, message)
 
 			else:
-				await message.channel.send('Вы еще не зарегистрированы!\nДля регистрации напишите $reg')
+				await message.reply('Вы еще не зарегистрированы!\nДля регистрации напишите $reg')
 
 		# Регистрация нового пользователя
 		if message.content.startswith('$reg'):
 			if(db.check_user(str(message.author))):
-				await message.channel.send('Вы уже зарегистрированы! Для просмотра баланса напишите $bal')
+				await message.reply('Вы уже зарегистрированы! Для просмотра баланса напишите $bal')
 			else:
 				db.add_user(str(message.author))
-				await message.channel.send('Вы были успешно зарегистрированы!')
+				await message.reply('Вы были успешно зарегистрированы!')
 
 		# Проверка баланса
 		if message.content.startswith('$bal'):
 			if(db.check_user(str(message.author))):
 				a = db.get_bal(str(message.author))
-				await message.channel.send('Ваш баланс составляет: ' + str(a[0]) + ' копеек!')
+				await message.reply('Ваш баланс составляет: ' + str(a[0]) + ' копеек!')
 			else:
-				await message.channel.send('Вы еще не зарегистрированы!\nДля регистрации напишите $reg')
+				await message.reply('Вы еще не зарегистрированы!\nДля регистрации напишите $reg')
 
 		# Вывод помощи
 		if message.content.startswith('$help'):
-			await message.channel.send(file=discord.File('img/papich.gif'))
-			await message.channel.send('Здравствуйте ' + message.author.name 
+			await message.reply(file=discord.File('img/papich.gif'))
+			await message.reply('Здравствуйте ' + message.author.name 
 				+ '!\nМеня зовут Казиныч бот 🤖, я был создан специально по заказу величайших участников конференции Distance learning и призван крутить казиныч для все желающих работяг 👨‍🏭\n'
 				+ 'Основная валюта в нашем казиныче - копейки 💰, но так же у нас есть специальные сезонные ивенты 🔥, так что следите за новостями\n'
 				+ 'Что я могу: \n$play [ставка] - крутить казиныч\n$reg - зарегистрировать работягу в рабочий класс и выдать первые микрогрошы\n$bal - посмотреть баланс\n'
 				+ 'Желаю всем быть на удачичах и грошоподнималычах 🍀!')
+
+		# Перевод денег с одного счета на другой
+		if message.content.startswith('$trans'):
+			if db.check_user(str(message.author)):
+				cont = message.content.split()
+				if len(cont) == 3:
+					money = float(cont[1])
+					recipient = str(cont[2])
+					source = str(message.author)
+					balance = db.get_bal(source)
+					balance = float(str(balance[0]))
+					if(balance >= money):
+						balance_r = db.get_bal(recipient)
+						balance_r = float(str(balance_r[0]))
+						db.update_bal(source, str(balance - money))
+						db.update_bal(recipient, str(balance_r + money))
+						await message.reply('Операция прошла успешно!\nВы передали ' + str(money) + ' копеек работяге ' + recipient)
+					else:
+						# Если недостаточно средств
+						await message.reply('У вас недостаточно средств для перевода!')
+				else:
+					# Вывод ошибки
+					await message.reply('Вы неправильно написали комамнду! Правильный формат - $trans [сумма] [имя + id пользователя]')
+
+			else:
+				await message.reply('Вы еще не зарегистрированы!\nДля регистрации напишите $reg')
+
 
 
 
