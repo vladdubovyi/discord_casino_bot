@@ -43,7 +43,7 @@ def check_prize(drum, bet):
 		return bet
 
 async def roll_casino(bet, message):
-	balance = db.get_bal(str(message.author))
+	balance = db.get_bal(str(message.author.id))
 	balance = float(str(balance[0]))
 	if balance >= bet:
 		# Если баланса хватает на кручение
@@ -54,7 +54,7 @@ async def roll_casino(bet, message):
 						+ drum[3] + '\t' + drum[4] + '\t' + drum[5] +'\n'
 						+ drum[6] + '\t' + drum[7] + '\t' + drum[8] +'\n', mention_author=True)
 		await message.reply('Ваш выигрыш составляет ' + str(bet) + '!')
-		db.update_bal(str(message.author), str(balance + bet))
+		db.update_bal(str(message.author.id), str(balance + bet))
 	else:
 		await message.reply('У вас недостаточно копеек для этого кручения!')
 
@@ -66,7 +66,7 @@ class MyClient(discord.Client):
 
 		# Основная функция для игры и кручения казиныча
 		if message.content.startswith('$play'):
-			if db.check_user(str(message.author)):
+			if db.check_user(str(message.author.id)):
 				cont = message.content.split()
 				if len(cont) > 1:
 					# Кручение на заданую ставку
@@ -81,16 +81,16 @@ class MyClient(discord.Client):
 
 		# Регистрация нового пользователя
 		if message.content.startswith('$reg'):
-			if(db.check_user(str(message.author))):
+			if(db.check_user(str(message.author.id))):
 				await message.reply('Вы уже зарегистрированы! Для просмотра баланса напишите $bal')
 			else:
-				db.add_user(str(message.author))
+				db.add_user(str(message.author), str(message.author.id))
 				await message.reply('Вы были успешно зарегистрированы!')
 
 		# Проверка баланса
 		if message.content.startswith('$bal'):
-			if(db.check_user(str(message.author))):
-				a = db.get_bal(str(message.author))
+			if(db.check_user(str(message.author.id))):
+				a = db.get_bal(str(message.author.id))
 				await message.reply('Ваш баланс составляет: ' + str(a[0]) + ' копеек!')
 			else:
 				await message.reply('Вы еще не зарегистрированы!\nДля регистрации напишите $reg')
@@ -102,27 +102,34 @@ class MyClient(discord.Client):
 				+ '!\nМеня зовут Казиныч бот 🤖, я был создан специально по заказу величайших участников конференции Distance learning и призван крутить казиныч для все желающих работяг 👨‍🏭\n'
 				+ 'Основная валюта в нашем казиныче - копейки 💰, но так же у нас есть специальные сезонные ивенты 🔥, так что следите за новостями\n'
 				+ 'Что я могу: \n$play [ставка] - крутить казиныч\n$reg - зарегистрировать работягу в рабочий класс и выдать первые микрогрошы\n$bal - посмотреть баланс\n'
+				+ '$update - обновить свой ник в базе данных\n$trans <money> @<user>- передать средства другому игроку'
 				+ 'Желаю всем быть на удачичах и грошоподнималычах 🍀!')
 
 		# Перевод денег с одного счета на другой
 		if message.content.startswith('$trans'):
-			if db.check_user(str(message.author)):
+			if db.check_user(str(message.author.id)):
 				cont = message.content.split()
 				if len(cont) == 3:
 					money = float(cont[1])
 					recipient = str(cont[2])
-					source = str(message.author)
-					balance = db.get_bal(source)
-					balance = float(str(balance[0]))
-					if(balance >= money):
-						balance_r = db.get_bal(recipient)
-						balance_r = float(str(balance_r[0]))
-						db.update_bal(source, str(balance - money))
-						db.update_bal(recipient, str(balance_r + money))
-						await message.reply('Операция прошла успешно!\nВы передали ' + str(money) + ' копеек работяге ' + recipient)
+					recipient = recipient[3 : len(recipient) - 1]
+					if db.check_user(recipient):
+						source = str(message.author.id)
+						balance = db.get_bal(source)
+						balance = float(str(balance[0]))
+						if(balance >= money):
+							balance_r = db.get_bal(recipient)
+							balance_r = float(str(balance_r[0]))
+							db.update_bal(source, str(balance - money))
+							db.update_bal(recipient, str(balance_r + money))
+							r_n = db.get_name(str(recipient))
+							await message.reply('Операция прошла успешно!\nВы передали ' + str(money) + ' копеек работяге ' + str(r_n[0]))
+						else:
+							# Если недостаточно средств
+							await message.reply('У вас недостаточно средств для перевода!')
 					else:
-						# Если недостаточно средств
-						await message.reply('У вас недостаточно средств для перевода!')
+						# Если получатель не найден
+						await message.reply('Данный пользователь не найден!')
 				else:
 					# Вывод ошибки
 					await message.reply('Вы неправильно написали комамнду! Правильный формат - $trans [сумма] [имя + id пользователя]')
@@ -130,7 +137,13 @@ class MyClient(discord.Client):
 			else:
 				await message.reply('Вы еще не зарегистрированы!\nДля регистрации напишите $reg')
 
-
+		#Обновление ника в базе данных
+		if message.content.startswith('$update'):
+			if db.check_user(str(message.author.id)):
+				db.update_name(str(message.author.id), str(message.author))
+				await message.reply('Вы успешно сменили ник на ' + str(message.author) + '!')
+			else:
+				await message.reply('Вы еще не зарегистрированы!\nДля регистрации напишите $reg')
 
 
 
