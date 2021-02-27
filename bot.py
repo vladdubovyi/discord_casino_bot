@@ -6,6 +6,7 @@ from random import randint
 # Инициализируем подключение к БД
 db = db.SQLite(config.db_fileName)
 
+# Заполнение текущего кручения
 def roll_drums():
 	symbs = ['🍎', '🍌', '🍑', '🍍', '🥝']
 	res = []
@@ -15,7 +16,7 @@ def roll_drums():
 		i = i + 1
 	return res
 
-
+# Проверка на выигрыш
 def check_prize(drum, bet):
 	tmp = bet
 	if drum[0] == drum[1] and drum[1] == drum[2]:
@@ -42,12 +43,13 @@ def check_prize(drum, bet):
 	else:
 		return bet
 
+# Полное кручение с обновлением баланса
 async def roll_casino(bet, message):
-	balance = db.get_bal(str(message.author.id))
-	balance = float(str(balance[0]))
+	balance = db.get_bal(str(message.author.id)) # Получаем текущий баланс
+	balance = float(str(balance[0])) # Переводим его в флоат
 	if balance >= bet:
 		# Если баланса хватает на кручение
-		balance -= bet
+		balance -= bet 
 		drum = roll_drums()
 		bet = check_prize(drum, bet)
 		await message.reply(drum[0] + '\t' + drum[1] + '\t' + drum[2] + '\n'
@@ -108,20 +110,20 @@ class MyClient(discord.Client):
 		# Перевод денег с одного счета на другой
 		if message.content.startswith('$trans'):
 			if db.check_user(str(message.author.id)):
-				cont = message.content.split()
+				cont = message.content.split() # Получаем все необходимые данные
 				if len(cont) == 3:
-					money = float(cont[1])
-					recipient = str(cont[2])
-					recipient = recipient[3 : len(recipient) - 1]
-					if db.check_user(recipient):
-						source = str(message.author.id)
-						balance = db.get_bal(source)
-						balance = float(str(balance[0]))
-						if(balance >= money):
+					money = float(cont[1]) # Записываем количество денег
+					recipient = str(cont[2]) 
+					recipient = recipient[3 : len(recipient) - 1] # Записываем Id получателя
+					if db.check_user(recipient): # Если получатель существует
+						source = str(message.author.id) # Записываем Id отправителя
+						balance = db.get_bal(source) 
+						balance = float(str(balance[0])) # Получаем баланс отправителя
+						if(balance >= money): # Если его хватает
 							balance_r = db.get_bal(recipient)
-							balance_r = float(str(balance_r[0]))
+							balance_r = float(str(balance_r[0])) # Получаем баланс получателя
 							db.update_bal(source, str(balance - money))
-							db.update_bal(recipient, str(balance_r + money))
+							db.update_bal(recipient, str(balance_r + money)) # Обновляем балансы
 							r_n = db.get_name(str(recipient))
 							await message.reply('Операция прошла успешно!\nВы передали ' + str(money) + ' копеек работяге ' + str(r_n[0]))
 						else:
